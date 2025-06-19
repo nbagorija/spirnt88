@@ -49,14 +49,9 @@ func TestAddGetDelete(t *testing.T) {
 	fetchedParcel, err := store.Get(id)
 	require.NoError(t, err)
 	parcel.Number = id
-
-	require.Equal(t, parcel.Client, fetchedParcel.Client)
-	require.Equal(t, parcel.Status, fetchedParcel.Status)
-	require.Equal(t, parcel.Address, fetchedParcel.Address)
-
-	require.NotEmpty(t, fetchedParcel.CreatedAt)
-	_, err = time.Parse(time.RFC3339, fetchedParcel.CreatedAt)
-	require.NoError(t, err)
+	// Устанавливаем CreatedAt из базы для корректного сравнения
+	parcel.CreatedAt = fetchedParcel.CreatedAt
+	require.Equal(t, parcel, fetchedParcel)
 
 	// delete
 	err = store.Delete(id)
@@ -162,14 +157,8 @@ func TestGetByClient(t *testing.T) {
 	for _, parcel := range storedParcels {
 		original, ok := parcelMap[parcel.Number]
 		require.True(t, ok)
-
-		require.Equal(t, original.Number, parcel.Number)
-		require.Equal(t, original.Client, parcel.Client)
-		require.Equal(t, original.Status, parcel.Status)
-		require.Equal(t, original.Address, parcel.Address)
-
-		require.NotEmpty(t, parcel.CreatedAt)
-		_, err := time.Parse(time.RFC3339, parcel.CreatedAt)
-		require.NoError(t, err)
+		// Устанавливаем CreatedAt из базы для корректного сравнения
+		original.CreatedAt = parcel.CreatedAt
+		require.Equal(t, original, parcel)
 	}
 }
