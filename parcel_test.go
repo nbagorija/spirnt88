@@ -48,11 +48,15 @@ func TestAddGetDelete(t *testing.T) {
 	// get
 	fetchedParcel, err := store.Get(id)
 	require.NoError(t, err)
-	require.Equal(t, id, fetchedParcel.Number)
+	parcel.Number = id
+
 	require.Equal(t, parcel.Client, fetchedParcel.Client)
-	require.Equal(t, "registered", fetchedParcel.Status)
+	require.Equal(t, parcel.Status, fetchedParcel.Status)
 	require.Equal(t, parcel.Address, fetchedParcel.Address)
+
 	require.NotEmpty(t, fetchedParcel.CreatedAt)
+	_, err = time.Parse(time.RFC3339, fetchedParcel.CreatedAt)
+	require.NoError(t, err)
 
 	// delete
 	err = store.Delete(id)
@@ -132,9 +136,9 @@ func TestGetByClient(t *testing.T) {
 
 	// задаём всем посылкам один и тот же идентификатор клиента
 	client := randRange.Intn(10_000_000)
-	parcels[0].Client = client
-	parcels[1].Client = client
-	parcels[2].Client = client
+	for i := range parcels {
+		parcels[i].Client = client
+	}
 
 	// add
 	for i := 0; i < len(parcels); i++ {
@@ -158,9 +162,14 @@ func TestGetByClient(t *testing.T) {
 	for _, parcel := range storedParcels {
 		original, ok := parcelMap[parcel.Number]
 		require.True(t, ok)
+
+		require.Equal(t, original.Number, parcel.Number)
 		require.Equal(t, original.Client, parcel.Client)
 		require.Equal(t, original.Status, parcel.Status)
 		require.Equal(t, original.Address, parcel.Address)
+
 		require.NotEmpty(t, parcel.CreatedAt)
+		_, err := time.Parse(time.RFC3339, parcel.CreatedAt)
+		require.NoError(t, err)
 	}
 }

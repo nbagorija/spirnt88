@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -32,7 +33,7 @@ func (s ParcelStore) Get(number int) (Parcel, error) {
 	var p Parcel
 	err := s.db.QueryRow(query, number).Scan(&p.Number, &p.Client, &p.Status, &p.Address, &p.CreatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return p, fmt.Errorf("parcel not found")
 		}
 		return p, err
@@ -57,7 +58,13 @@ func (s ParcelStore) GetByClient(client int) ([]Parcel, error) {
 		}
 		res = append(res, p)
 	}
-	return res, rows.Err()
+
+	// Проверяем ошибки, возникшие при переборе строк
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (s ParcelStore) SetStatus(number int, status string) error {
@@ -67,39 +74,33 @@ func (s ParcelStore) SetStatus(number int, status string) error {
 }
 
 func (s ParcelStore) SetAddress(number int, address string) error {
-	// Проверяем статус перед обновлением
-	var currentStatus string
-	err := s.db.QueryRow("SELECT status FROM parcel WHERE number = ?", number).Scan(&currentStatus)
+	query := "UPDATE parcel SET address = ? WHERE number = ? AND status = 'registered'"
+	result, err := s.db.Exec(query, address, number)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("parcel not found")
-		}
 		return err
 	}
-	if currentStatus != "registered" {
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
 		return fmt.Errorf("address can only be updated for registered parcels")
 	}
-
-	query := "UPDATE parcel SET address = ? WHERE number = ?"
-	_, err = s.db.Exec(query, address, number)
-	return err
+	return nil
 }
 
 func (s ParcelStore) Delete(number int) error {
-	// Проверяем статус перед удалением
-	var currentStatus string
-	err := s.db.QueryRow("SELECT status FROM parcel WHERE number = ?", number).Scan(&currentStatus)
+	query := "DELETE FROM parcel WHERE number = ? AND status = 'registered'"
+	result, err := s.db.Exec(query, number)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("parcel not found")
-		}
 		return err
 	}
-	if currentStatus != "registered" {
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
 		return fmt.Errorf("can only delete registered parcels")
 	}
-
-	query := "DELETE FROM parcel WHERE number = ?"
-	_, err = s.db.Exec(query, number)
-	return err
+	return nil
 }
